@@ -1,86 +1,113 @@
 const express = require('express')
 // const morgan = require('morgan')
 const cors = require('cors')
+require('dotenv').config()
 const app = express()
+const Contact = require('./models/contact')
+const errorHandler = require('./middlewares/ErrorHandler')
 
 app.use(express.json())
 app.use(express.static('build'))
 app.use(cors())
 // app.use(morgan(':method :url :body'));
 
-let contacts = [
-  { 
-    id: 1,
-    name: "Arto Hellas", 
-    number: "040-123456"
-  },
-  { 
-    id: 2,
-    name: "Ada Lovelace", 
-    number: "39-44-5323523"
-  },
-  { 
-    id: 3,
-    name: "Dan Abramov", 
-    number: "12-43-234345"
-  },
-  { 
-    id: 4,
-    name: "Mary Poppendieck", 
-    number: "39-23-6423122"
-  }
-]
 
 app.get('/api/contacts', (req, res) => {
-  return res.json(contacts)
+  Contact.find({})
+    .then(contacts => {
+      res.json(contacts)
+    })
 })
 
-app.get('/api/contacts/:id', (req, res) => {
-  const id = Number(req.params.id)
-  const contact = contacts.find(c => c.id === id)
-  if(!contact) {
-    res.status(404).end()
-  } else {
-    res.json(contact)
-  }
+app.get('/api/contacts/:id', (req, res, next) => {
+  const id = req.params.id
+  Contact.findById(id)
+    .then(contact => {
+      res.json(contact)
+    })
+    .catch(error => next(error))
 })
 
 app.post('/api/contacts', (req, res) => {
   const body = req.body
-  const contactExists = contacts.find(c => c.name === body.name)
-
-  if(!body.name || !body.number) {
-    res.status(400).json({
+  if(body.name === undefined || body.number === undefined) {
+    return res.status(400).json({
       error: 'name and number are required'
     })
-  } else if(contactExists) {
-      res.status(400).json({
-        error: 'name must be unique'
-      })
-  } else {
-    const contact = {
-      name: body.name,
-      number: body.number,
-      id: Math.floor(Math.random() * 100000000)
-    }
-  
-    contacts = [...contacts, contact]
-    res.json(contact)
   }
+  const contact = new Contact({
+    name: body.name,
+    number: body.number
+  })
+  contact.save()
+    .then(savedContact => {
+      res.json(savedContact)
+    })
+  // const contactExists = contacts.find(c => c.name === body.name)
+
+  // if(!body.name || !body.number) {
+  //   res.status(400).json({
+  //     error: 'name and number are required'
+  //   })
+  // } else if(contactExists) {
+  //     res.status(400).json({
+  //       error: 'name must be unique'
+  //     })
+  // } else {
+  //   const contact = {
+  //     name: body.name,
+  //     number: body.number,
+  //     id: Math.floor(Math.random() * 100000000)
+  //   }
+  
+  //   contacts = [...contacts, contact]
+  //   res.json(contact)
+  // }
   
 })
 // morgan.token('body', request => JSON.stringify(request.body))
 
-app.delete('/api/contacts/:id', (req, res) => {
-  const id = Number(req.params.id)
-  contacts = contacts.filter(c => c.id !== id)
-  res.status(204).end()
+app.delete('/api/contacts/:id', (req, res, next) => {
+  Contact.findByIdAndRemove(req.params.id)
+    .then(result => {
+      res.status(204).end()
+    })
+    .catch(error => {
+      next(error)
+    })
+})
+
+app.put('/api/contacts/', async (req, res, next) => {
+  const body = req.body
+  let contactToUpdate = await Contact.find({ name: body.name })
+  // if(!contactToUpdate) {
+  //   res.status(404).json({ error: 'Contact not found'})
+  // }
+  
+  const contact = {
+    name: contactToUpdate[0].name,
+    number: body.number
+  }
+
+  console.log(contact)
+
+  Contact.findByIdAndUpdate(contactToUpdate[0].id, contact, { new: true })
+    .then(updatedContact => {
+      console.log(updatedContact)
+      res.json(updatedContact)
+    })
+    .catch(error => {
+      next(error)
+    })
 })
 
 
 const unknownEndpoint = (req, res) => {
   res.status(404).send({ error: 'unknown endpoint' })
 }
+
+app.use(unknownEndpoint)
+app.use(errorHandler)
 
 const PORT = process.env.PORT || 3003
 app.listen(PORT, () => {
