@@ -28,7 +28,7 @@ app.get('/api/contacts/:id', (req, res, next) => {
     .catch(error => next(error))
 })
 
-app.post('/api/contacts', (req, res) => {
+app.post('/api/contacts', (req, res, next) => {
   const body = req.body
   if(body.name === undefined || body.number === undefined) {
     return res.status(400).json({
@@ -43,6 +43,7 @@ app.post('/api/contacts', (req, res) => {
     .then(savedContact => {
       res.json(savedContact)
     })
+    .catch(error => next(error))
   // const contactExists = contacts.find(c => c.name === body.name)
 
   // if(!body.name || !body.number) {
@@ -59,17 +60,15 @@ app.post('/api/contacts', (req, res) => {
   //     number: body.number,
   //     id: Math.floor(Math.random() * 100000000)
   //   }
-  
   //   contacts = [...contacts, contact]
   //   res.json(contact)
   // }
-  
 })
 // morgan.token('body', request => JSON.stringify(request.body))
 
 app.delete('/api/contacts/:id', (req, res, next) => {
   Contact.findByIdAndRemove(req.params.id)
-    .then(result => {
+    .then(() => {
       res.status(204).end()
     })
     .catch(error => {
@@ -83,7 +82,6 @@ app.put('/api/contacts/', async (req, res, next) => {
   // if(!contactToUpdate) {
   //   res.status(404).json({ error: 'Contact not found'})
   // }
-  
   const contact = {
     name: contactToUpdate[0].name,
     number: body.number
